@@ -7,6 +7,6 @@ class BotSettings(BaseSettings):
     api_key: str = "changeme"
     frontend_url: str = "http://localhost:5173"
 
-    model_config = {"env_file": ".env"}
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 settings = BotSettings()
