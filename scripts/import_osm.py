@@ -28,8 +28,13 @@ async def run():
     pool = await asyncpg.create_pool(db_url)
 
     print("Fetching stations from Overpass API…")
-    async with httpx.AsyncClient(timeout=120, headers=OVERPASS_HEADERS) as http:
-        for url in [OVERPASS_URL, "https://overpass.kumi.systems/api/interpreter"]:
+    mirrors = [
+        OVERPASS_URL,
+        "https://overpass.openstreetmap.ru/cgi/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+    ]
+    async with httpx.AsyncClient(timeout=180, headers=OVERPASS_HEADERS) as http:
+        for url in mirrors:
             resp = await http.post(url, data={"data": QUERY})
             if resp.status_code == 200:
                 break
