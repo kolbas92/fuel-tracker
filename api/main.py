@@ -13,6 +13,6 @@ async def lifespan(app: FastAPI):
     await close_pool()
 
 
-app = FastAPI(title="Fuel Tracker API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Fuel Tracker API", version="1.0.0", lifespan=lifespan, redirect_slashes=False)
 app.include_router(stations.router, prefix="/stations", tags=["stations"])
 app.include_router(reports.router, prefix="/reports", tags=["reports"])
