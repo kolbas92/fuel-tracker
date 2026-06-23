@@ -35,16 +35,29 @@ async def nearby_stations(
 ):
     radius_m = radius_km * 1000
     async with pool.acquire() as conn:
-        rows = await conn.fetch("""
-            SELECT id, osm_id, name, brand, address,
-                   ST_Y(location::geometry) AS lat,
-                   ST_X(location::geometry) AS lon,
-                   ST_Distance(location, ST_MakePoint($2, $1)::geography) AS dist
-            FROM stations
-            WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
-            ORDER BY dist
-            LIMIT 10
-        """, lat, lon, radius_m)
+        if fuel_type:
+            rows = await conn.fetch("""
+                SELECT DISTINCT ON (s.id) s.id, s.osm_id, s.name, s.brand, s.address,
+                       ST_Y(s.location::geometry) AS lat,
+                       ST_X(s.location::geometry) AS lon,
+                       ST_Distance(s.location, ST_MakePoint($2, $1)::geography) AS dist
+                FROM stations s
+                JOIN station_status ss ON ss.station_id = s.id AND ss.fuel_type = $3
+                WHERE ST_DWithin(s.location, ST_MakePoint($2, $1)::geography, $4)
+                ORDER BY s.id, dist
+                LIMIT 10
+            """, lat, lon, fuel_type, radius_m)
+        else:
+            rows = await conn.fetch("""
+                SELECT id, osm_id, name, brand, address,
+                       ST_Y(location::geometry) AS lat,
+                       ST_X(location::geometry) AS lon,
+                       ST_Distance(location, ST_MakePoint($2, $1)::geography) AS dist
+                FROM stations
+                WHERE ST_DWithin(location, ST_MakePoint($2, $1)::geography, $3)
+                ORDER BY dist
+                LIMIT 10
+            """, lat, lon, radius_m)
     return [dict(r) for r in rows]
 
 @router.get("/", response_model=list[StationOut])

@@ -30,6 +30,7 @@ class StationOut(BaseModel):
     address: Optional[str]
     lat: float
     lon: float
+    dist: Optional[float] = None  # distance in meters, only set by /nearby endpoint
 
 class StationWithStatus(StationOut):
     fuel_status: list[FuelStatus]

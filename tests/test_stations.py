@@ -54,6 +54,18 @@ async def test_nearby_stations(client, db_pool):
     assert r.status_code == 200
     assert len(r.json()) >= 1
 
+async def test_nearby_with_fuel_type_filter(client, db_pool):
+    await _seed_user(db_pool)
+    await _seed_station(client, lat=55.75, lon=37.62)
+    # No reports = station_status view has no rows for this station
+    # So filtering by fuel_type should return empty (no matching status rows)
+    r = await client.get("/stations/nearby", params={
+        "lat": 55.75, "lon": 37.62, "radius_km": 1.0, "fuel_type": "95"
+    })
+    assert r.status_code == 200
+    # No reports for this station, so fuel_type filter returns empty
+    assert r.json() == []
+
 async def test_station_status_not_found(client):
     r = await client.get(f"/stations/{uuid4()}/status")
     assert r.status_code == 404
