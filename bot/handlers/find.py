@@ -3,7 +3,8 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from bot.states import FindFuel
-from bot.keyboards import fuel_type_keyboard, location_request, main_menu
+from bot.keyboards import fuel_type_keyboard, cancel_keyboard, main_menu
+from bot.geocode import geocode
 from bot import client as api
 
 router = Router()
@@ -19,19 +20,32 @@ async def find_start(message: Message, state: FSMContext):
 async def find_fuel_chosen(callback: CallbackQuery, state: FSMContext):
     fuel_type = callback.data.split(":")[1]
     await state.update_data(fuel_type=fuel_type)
-    await state.set_state(FindFuel.waiting_location)
+    await state.set_state(FindFuel.waiting_city)
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
-        f"Выбран: {FUEL_LABELS[fuel_type]}\n\nОтправь геолокацию:",
-        reply_markup=location_request(),
+        f"Выбран: {FUEL_LABELS[fuel_type]}\n\nВведи город или район (например: Лиски, Воронеж):",
+        reply_markup=cancel_keyboard(),
     )
     await callback.answer()
 
-@router.message(FindFuel.waiting_location, F.location)
-async def find_location_received(message: Message, state: FSMContext):
+@router.message(FindFuel.waiting_city, F.text)
+async def find_city_received(message: Message, state: FSMContext):
+    if message.text == "❌ Отмена":
+        await state.clear()
+        await message.answer("Отменено.", reply_markup=main_menu())
+        return
+
+    coords = await geocode(message.text)
+    if coords is None:
+        await message.answer(
+            "😔 Не удалось найти такой населённый пункт. Попробуй ещё раз.\n"
+            "Например: Лиски, Воронеж, Россошь"
+        )
+        return
+
+    lat, lon = coords
     data = await state.get_data()
     await state.clear()
-    lat, lon = message.location.latitude, message.location.longitude
     fuel_type = data["fuel_type"]
 
     stations = await api.get_nearby(lat, lon, fuel_type=fuel_type)
@@ -48,6 +62,5 @@ async def find_location_received(message: Message, state: FSMContext):
         dist_km = (s.get("dist") or 0) / 1000
         name = s.get("name") or "Заправка"
         lines.append(f"• {name} — {dist_km:.1f} км")
-    lines.append("\n<i>Открой карту для подробностей 🗺️</i>")
 
     await message.answer("\n".join(lines), parse_mode="HTML", reply_markup=main_menu())

@@ -13,14 +13,14 @@ def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="🔍 Найти топливо"), KeyboardButton(text="📝 Сообщить")],
-            [KeyboardButton(text="🗺️ Карта"),          KeyboardButton(text="ℹ️ Помощь")],
+            [KeyboardButton(text="ℹ️ Помощь")],
         ],
         resize_keyboard=True,
     )
 
-def location_request(prompt: str = "📍 Отправить геолокацию") -> ReplyKeyboardMarkup:
+def cancel_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=prompt, request_location=True)]],
+        keyboard=[[KeyboardButton(text="❌ Отмена")]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )

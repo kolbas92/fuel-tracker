@@ -20,15 +20,8 @@ async def cmd_start(message: Message):
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     await message.answer(
-        "🔍 <b>Найти топливо</b> — ближайшие заправки с нужным видом\n"
-        "📝 <b>Сообщить</b> — сообщи о наличии и цене\n"
-        "🗺️ <b>Карта</b> — открыть веб-карту\n\n"
+        "🔍 <b>Найти топливо</b> — введи город/район, получишь ближайшие заправки\n"
+        "📝 <b>Сообщить</b> — введи город/район, выбери заправку, укажи наличие и цену\n\n"
         "Данные актуальны 24 часа после репорта.",
         parse_mode="HTML",
-    )
-
-@router.message(lambda m: m.text == "🗺️ Карта")
-async def cmd_map(message: Message):
-    await message.answer(
-        f"🗺️ Открой карту в браузере:\n{settings.frontend_url}"
     )

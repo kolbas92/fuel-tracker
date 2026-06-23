@@ -4,9 +4,10 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from bot.states import ReportFuel
 from bot.keyboards import (
-    fuel_type_keyboard, location_request,
+    fuel_type_keyboard, cancel_keyboard,
     yes_no_keyboard, station_choice_keyboard, main_menu,
 )
+from bot.geocode import geocode
 from bot import client as api
 
 router = Router()
@@ -15,12 +16,28 @@ FUEL_LABELS = {"92": "АИ-92", "95": "АИ-95", "98": "АИ-98", "dt": "ДТ", 
 
 @router.message(F.text == "📝 Сообщить")
 async def report_start(message: Message, state: FSMContext):
-    await state.set_state(ReportFuel.waiting_location)
-    await message.answer("Отправь геолокацию:", reply_markup=location_request())
+    await state.set_state(ReportFuel.waiting_city)
+    await message.answer(
+        "Введи город или район где находится заправка (например: Лиски, Воронеж):",
+        reply_markup=cancel_keyboard(),
+    )
 
-@router.message(ReportFuel.waiting_location, F.location)
-async def report_location(message: Message, state: FSMContext):
-    lat, lon = message.location.latitude, message.location.longitude
+@router.message(ReportFuel.waiting_city, F.text)
+async def report_city(message: Message, state: FSMContext):
+    if message.text == "❌ Отмена":
+        await state.clear()
+        await message.answer("Отменено.", reply_markup=main_menu())
+        return
+
+    coords = await geocode(message.text)
+    if coords is None:
+        await message.answer(
+            "😔 Не удалось найти такой населённый пункт. Попробуй ещё раз.\n"
+            "Например: Лиски, Воронеж, Россошь"
+        )
+        return
+
+    lat, lon = coords
     stations = await api.get_nearby(lat, lon, radius_km=2.0)
     if not stations:
         await state.clear()
