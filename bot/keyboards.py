@@ -9,6 +9,8 @@ FUEL_TYPES = [
     ("ДТ", "dt"), ("Газ", "gas"),
 ]
 
+_CANCEL_ROW = [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+
 def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -16,6 +18,17 @@ def main_menu() -> ReplyKeyboardMarkup:
             [KeyboardButton(text="ℹ️ Помощь")],
         ],
         resize_keyboard=True,
+    )
+
+def location_or_city_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📍 Поделиться геолокацией", request_location=True)],
+            [KeyboardButton(text="✏️ Ввести город или район")],
+            [KeyboardButton(text="❌ Отмена")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
     )
 
 def cancel_keyboard() -> ReplyKeyboardMarkup:
@@ -30,13 +43,16 @@ def fuel_type_keyboard() -> InlineKeyboardMarkup:
             for label, code in FUEL_TYPES[:3]]
     row2 = [InlineKeyboardButton(text=label, callback_data=f"fuel:{code}")
             for label, code in FUEL_TYPES[3:]]
-    return InlineKeyboardMarkup(inline_keyboard=[row1, row2])
+    return InlineKeyboardMarkup(inline_keyboard=[row1, row2, _CANCEL_ROW])
 
 def yes_no_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="✅ Есть", callback_data="status:yes"),
-        InlineKeyboardButton(text="❌ Нет",  callback_data="status:no"),
-    ]])
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Есть", callback_data="status:yes"),
+            InlineKeyboardButton(text="❌ Нет",  callback_data="status:no"),
+        ],
+        _CANCEL_ROW,
+    ])
 
 def station_choice_keyboard(stations: list[dict]) -> InlineKeyboardMarkup:
     rows = [
@@ -46,4 +62,5 @@ def station_choice_keyboard(stations: list[dict]) -> InlineKeyboardMarkup:
         )]
         for s in stations[:5]
     ]
+    rows.append(_CANCEL_ROW)
     return InlineKeyboardMarkup(inline_keyboard=rows)

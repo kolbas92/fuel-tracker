@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from bot.states import ReportFuel
 from bot.keyboards import (
-    fuel_type_keyboard, cancel_keyboard,
+    fuel_type_keyboard, location_or_city_keyboard, cancel_keyboard,
     yes_no_keyboard, station_choice_keyboard, main_menu,
 )
 from bot.geocode import geocode
@@ -16,19 +16,41 @@ FUEL_LABELS = {"92": "АИ-92", "95": "АИ-95", "98": "АИ-98", "dt": "ДТ", 
 
 @router.message(F.text == "📝 Сообщить")
 async def report_start(message: Message, state: FSMContext):
+    await state.set_state(ReportFuel.waiting_location)
+    await message.answer(
+        "Как указать местоположение заправки?",
+        reply_markup=location_or_city_keyboard(),
+    )
+
+# --- waiting_location: GPS or choose text mode ---
+
+@router.message(ReportFuel.waiting_location, F.text == "❌ Отмена")
+async def report_cancel_location(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Отменено.", reply_markup=main_menu())
+
+@router.message(ReportFuel.waiting_location, F.text == "✏️ Ввести город или район")
+async def report_switch_to_city(message: Message, state: FSMContext):
     await state.set_state(ReportFuel.waiting_city)
     await message.answer(
         "Введи город или район где находится заправка (например: Лиски, Воронеж):",
         reply_markup=cancel_keyboard(),
     )
 
+@router.message(ReportFuel.waiting_location, F.location)
+async def report_location(message: Message, state: FSMContext):
+    lat, lon = message.location.latitude, message.location.longitude
+    await _find_stations(message, state, lat, lon)
+
+# --- waiting_city: text geocoding ---
+
+@router.message(ReportFuel.waiting_city, F.text == "❌ Отмена")
+async def report_cancel_city(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Отменено.", reply_markup=main_menu())
+
 @router.message(ReportFuel.waiting_city, F.text)
 async def report_city(message: Message, state: FSMContext):
-    if message.text == "❌ Отмена":
-        await state.clear()
-        await message.answer("Отменено.", reply_markup=main_menu())
-        return
-
     coords = await geocode(message.text)
     if coords is None:
         await message.answer(
@@ -36,8 +58,11 @@ async def report_city(message: Message, state: FSMContext):
             "Например: Лиски, Воронеж, Россошь"
         )
         return
+    await _find_stations(message, state, *coords)
 
-    lat, lon = coords
+# --- shared: find stations after coordinates known ---
+
+async def _find_stations(message: Message, state: FSMContext, lat: float, lon: float):
     stations = await api.get_nearby(lat, lon, radius_km=2.0)
     if not stations:
         await state.clear()
@@ -49,6 +74,13 @@ async def report_city(message: Message, state: FSMContext):
     await state.update_data(stations={s["id"]: s for s in stations[:5]})
     await state.set_state(ReportFuel.waiting_station)
     await message.answer("Выбери заправку:", reply_markup=station_choice_keyboard(stations))
+
+@router.callback_query(F.data == "cancel")
+async def report_cancel_inline(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer("Отменено.", reply_markup=main_menu())
+    await callback.answer()
 
 @router.callback_query(ReportFuel.waiting_station, F.data.startswith("station:"))
 async def report_station(callback: CallbackQuery, state: FSMContext):
@@ -79,12 +111,20 @@ async def report_status(callback: CallbackQuery, state: FSMContext):
 
     if has_fuel:
         await state.set_state(ReportFuel.waiting_price)
-        await callback.message.answer("Цена за литр (например: 54.20):")
+        await callback.message.answer(
+            "Цена за литр (например: 54.20):",
+            reply_markup=cancel_keyboard(),
+        )
     else:
         data = await state.get_data()
         await state.clear()
         await _save_report(callback.message, callback.from_user.id, data, has_fuel=False, price=None)
     await callback.answer()
+
+@router.message(ReportFuel.waiting_price, F.text == "❌ Отмена")
+async def report_cancel_price(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Отменено.", reply_markup=main_menu())
 
 @router.message(ReportFuel.waiting_price)
 async def report_price(message: Message, state: FSMContext):
