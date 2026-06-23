@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_HEADERS = {"User-Agent": "fuel-tracker-bot/1.0 (osm import)"}
 
 # Bounding box: Western Russia (lat_min, lon_min, lat_max, lon_max)
 BBOX = "47.0,27.0,62.0,55.0"
@@ -24,8 +25,12 @@ async def run():
     pool = await asyncpg.create_pool(db_url)
 
     print("Fetching stations from Overpass API…")
-    async with httpx.AsyncClient(timeout=120) as http:
-        resp = await http.post(OVERPASS_URL, data={"data": QUERY})
+    async with httpx.AsyncClient(timeout=120, headers=OVERPASS_HEADERS) as http:
+        for url in [OVERPASS_URL, "https://overpass.kumi.systems/api/interpreter"]:
+            resp = await http.post(url, data={"data": QUERY})
+            if resp.status_code == 200:
+                break
+            print(f"  {url} returned {resp.status_code}, trying next…")
         resp.raise_for_status()
         elements = resp.json().get("elements", [])
 
