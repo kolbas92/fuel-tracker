@@ -40,6 +40,7 @@ services:
       API_URL: http://localhost:8001
       API_KEY: ${API_KEY}
       FRONTEND_URL: ${FRONTEND_URL}
+      CHANNEL_URL: ${CHANNEL_URL:-}
 
 volumes:
   pgdata:
