@@ -15,9 +15,12 @@ OVERPASS_HEADERS = {"User-Agent": "fuel-tracker-bot/1.0 (osm import)"}
 BBOX = "47.0,27.0,62.0,55.0"
 
 QUERY = f"""
-[out:json][timeout:90];
-node["amenity"="fuel"]({BBOX});
-out body;
+[out:json][timeout:120];
+(
+  node["amenity"="fuel"]({BBOX});
+  way["amenity"="fuel"]({BBOX});
+);
+out body center;
 """
 
 async def run():
@@ -45,7 +48,14 @@ async def run():
             street = tags.get("addr:street", "")
             house = tags.get("addr:housenumber", "")
             address = f"{street}, {house}".strip(", ") or None
-            lat, lon, osm_id = el["lat"], el["lon"], el["id"]
+            # node → lat/lon directly; way → center.lat/center.lon
+            center = el.get("center", {})
+            lat = el.get("lat") or center.get("lat")
+            lon = el.get("lon") or center.get("lon")
+            osm_id = el["id"]
+            if lat is None or lon is None:
+                skipped += 1
+                continue
 
             try:
                 await conn.execute("""
