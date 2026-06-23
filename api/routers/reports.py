@@ -22,10 +22,10 @@ async def create_report(report: ReportCreate, pool: asyncpg.Pool = Depends(get_p
             raise HTTPException(status_code=404, detail="Station not found")
 
         await conn.execute("""
-            INSERT INTO reports (station_id, user_id, has_fuel, fuel_type, price)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO reports (station_id, user_id, has_fuel, fuel_type, price, comment)
+            VALUES ($1, $2, $3, $4, $5, $6)
         """, report.station_id, report.user_id,
-             report.has_fuel, report.fuel_type, report.price)
+             report.has_fuel, report.fuel_type, report.price, report.comment)
 
         await conn.execute("""
             UPDATE users SET report_count = report_count + 1 WHERE telegram_id = $1

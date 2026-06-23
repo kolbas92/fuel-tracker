@@ -2,7 +2,7 @@
 from aiogram import Router
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
-from bot.keyboards import main_menu
+from bot.keyboards import main_menu, start_inline
 from bot.config import settings
 
 router = Router()
@@ -15,6 +15,12 @@ async def cmd_start(message: Message):
         "Выбери действие:",
         reply_markup=main_menu(),
     )
+    channel_kb = start_inline(settings.channel_url)
+    if channel_kb:
+        await message.answer(
+            "📢 Подпишись на канал — там сводки по наличию топлива:",
+            reply_markup=channel_kb,
+        )
 
 @router.message(lambda m: m.text == "ℹ️ Помощь")
 @router.message(Command("help"))

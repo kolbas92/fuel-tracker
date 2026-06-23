@@ -4,10 +4,11 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from bot.states import ReportFuel
 from bot.keyboards import (
-    fuel_type_keyboard, location_or_city_keyboard, cancel_keyboard,
-    yes_no_keyboard, station_choice_keyboard, main_menu,
+    fuel_type_keyboard, location_or_city_keyboard, cancel_keyboard, comment_keyboard,
+    yes_no_keyboard, station_choice_keyboard, share_keyboard, main_menu,
 )
 from bot.geocode import geocode
+from bot.config import settings
 from bot import client as api
 
 router = Router()
@@ -116,9 +117,9 @@ async def report_status(callback: CallbackQuery, state: FSMContext):
             reply_markup=cancel_keyboard(),
         )
     else:
-        data = await state.get_data()
-        await state.clear()
-        await _save_report(callback.message, callback.from_user.id, data, has_fuel=False, price=None)
+        await state.update_data(price=None)
+        await state.set_state(ReportFuel.waiting_comment)
+        await callback.message.answer(_COMMENT_PROMPT, reply_markup=comment_keyboard())
     await callback.answer()
 
 @router.message(ReportFuel.waiting_price, F.text == "❌ Отмена")
@@ -135,21 +136,48 @@ async def report_price(message: Message, state: FSMContext):
     except ValueError:
         await message.answer("Введи положительное число, например: 54.20")
         return
+    await state.update_data(price=price)
+    await state.set_state(ReportFuel.waiting_comment)
+    await message.answer(_COMMENT_PROMPT, reply_markup=comment_keyboard())
+
+@router.message(ReportFuel.waiting_comment, F.text == "❌ Отмена")
+async def report_cancel_comment(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Отменено.", reply_markup=main_menu())
+
+@router.message(ReportFuel.waiting_comment, F.text)
+async def report_comment(message: Message, state: FSMContext):
+    if message.text == "⏭ Пропустить":
+        comment = None
+    else:
+        comment = message.text.strip()[:280] or None
     data = await state.get_data()
     await state.clear()
-    await _save_report(message, message.from_user.id, data, has_fuel=True, price=price)
+    await _save_report(message, message.from_user.id, data, comment=comment)
 
-async def _save_report(message: Message, user_id: int, data: dict, *, has_fuel: bool, price: float | None):
+_COMMENT_PROMPT = (
+    "Добавь комментарий (очередь, какие виды есть/нет, лимит на заправку и т.п.) "
+    "или нажми «⏭ Пропустить»:"
+)
+
+async def _save_report(message: Message, user_id: int, data: dict, *, comment: str | None):
+    has_fuel = data["has_fuel"]
+    price = data.get("price")
     await api.create_report(
         station_id=data["station_id"],
         user_id=user_id,
         has_fuel=has_fuel,
         fuel_type=data["fuel_type"],
         price=price,
+        comment=comment,
     )
     label = FUEL_LABELS[data["fuel_type"]]
     status_str = f"✅ есть · {price:.2f} ₽/л" if has_fuel else "❌ нет"
+    lines = ["✅ Репорт записан!", f"{label} — {status_str}"]
+    if comment:
+        lines.append(f"💬 {comment}")
+    await message.answer("\n".join(lines), reply_markup=main_menu())
     await message.answer(
-        f"✅ Репорт записан!\n{label} — {status_str}",
-        reply_markup=main_menu(),
+        "Спасибо! Чем больше людей в боте — тем точнее данные. Поделись 👇",
+        reply_markup=share_keyboard(settings.bot_username),
     )

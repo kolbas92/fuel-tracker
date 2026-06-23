@@ -1,4 +1,5 @@
 # bot/keyboards.py
+from urllib.parse import quote
 from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton,
@@ -11,6 +12,11 @@ FUEL_TYPES = [
 
 _CANCEL_ROW = [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
 
+_SHARE_TEXT = (
+    "⛽ «Бензина.нет» — бот показывает, где рядом есть топливо. "
+    "Данные от водителей в реальном времени, помоги и ты!"
+)
+
 def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -19,6 +25,30 @@ def main_menu() -> ReplyKeyboardMarkup:
         ],
         resize_keyboard=True,
     )
+
+def share_keyboard(bot_username: str) -> InlineKeyboardMarkup:
+    link = f"https://t.me/{bot_username}"
+    share_url = f"https://t.me/share/url?url={quote(link)}&text={quote(_SHARE_TEXT)}"
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="📤 Поделиться ботом", url=share_url)
+    ]])
+
+def comment_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="⏭ Пропустить")],
+            [KeyboardButton(text="❌ Отмена")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+def start_inline(channel_url: str) -> InlineKeyboardMarkup | None:
+    if not channel_url:
+        return None
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="📢 Наш канал", url=channel_url)
+    ]])
 
 def location_or_city_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(

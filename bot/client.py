@@ -20,12 +20,13 @@ async def get_station_status(station_id: str) -> dict:
         return r.json()
 
 async def create_report(*, station_id: str, user_id: int, has_fuel: bool,
-                         fuel_type: str, price: float = None) -> dict:
+                         fuel_type: str, price: float = None, comment: str = None) -> dict:
     async with httpx.AsyncClient(timeout=10) as http:
         r = await http.post(
             f"{settings.api_url}/reports",
             json={"station_id": station_id, "user_id": user_id,
-                  "has_fuel": has_fuel, "fuel_type": fuel_type, "price": price},
+                  "has_fuel": has_fuel, "fuel_type": fuel_type,
+                  "price": price, "comment": comment},
             headers=_HEADERS,
         )
         r.raise_for_status()

@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 import asyncpg
 from api.db import get_pool
-from api.schemas import StationCreate, StationOut, StationWithStatus, FuelStatus
+from api.schemas import StationCreate, StationOut, StationWithStatus, FuelStatus, CommentOut
 
 router = APIRouter()
 
@@ -94,6 +94,16 @@ async def station_status(station_id: UUID, pool: asyncpg.Pool = Depends(get_pool
             FROM station_status WHERE station_id = $1
         """, station_id)
 
+        comment_rows = await conn.fetch("""
+            SELECT comment AS text, fuel_type, has_fuel, created_at
+            FROM reports
+            WHERE station_id = $1
+              AND comment IS NOT NULL AND comment <> ''
+              AND created_at > NOW() - INTERVAL '7 days'
+            ORDER BY created_at DESC
+            LIMIT 5
+        """, station_id)
+
     fuel_status = []
     for r in status_rows:
         total = r["votes_yes"] + r["votes_no"]
@@ -107,4 +117,5 @@ async def station_status(station_id: UUID, pool: asyncpg.Pool = Depends(get_pool
             last_report=r["last_report"],
         ))
 
-    return StationWithStatus(**dict(station), fuel_status=fuel_status)
+    comments = [CommentOut(**dict(r)) for r in comment_rows]
+    return StationWithStatus(**dict(station), fuel_status=fuel_status, comments=comments)

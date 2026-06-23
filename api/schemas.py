@@ -32,8 +32,15 @@ class StationOut(BaseModel):
     lon: float
     dist: Optional[float] = None  # distance in meters, only set by /nearby endpoint
 
+class CommentOut(BaseModel):
+    text: str
+    fuel_type: str
+    has_fuel: bool
+    created_at: datetime
+
 class StationWithStatus(StationOut):
     fuel_status: list[FuelStatus]
+    comments: list[CommentOut] = []
 
 class ReportCreate(BaseModel):
     station_id: UUID
@@ -41,6 +48,7 @@ class ReportCreate(BaseModel):
     has_fuel: bool
     fuel_type: str
     price: Optional[float] = None
+    comment: Optional[str] = None
 
     @field_validator("fuel_type")
     @classmethod
@@ -55,3 +63,11 @@ class ReportCreate(BaseModel):
         if v is not None and v <= 0:
             raise ValueError("price must be positive")
         return v
+
+    @field_validator("comment")
+    @classmethod
+    def validate_comment(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        return v[:280] if v else None

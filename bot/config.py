@@ -6,6 +6,8 @@ class BotSettings(BaseSettings):
     api_url: str = "http://localhost:8000"
     api_key: str = "changeme"
     frontend_url: str = "http://localhost:5173"
+    bot_username: str = "zapravka_gde_bot"
+    channel_url: str = ""  # e.g. https://t.me/your_channel; empty hides the button
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
