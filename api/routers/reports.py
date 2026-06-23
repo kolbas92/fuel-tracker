@@ -6,7 +6,7 @@ from api.schemas import ReportCreate
 
 router = APIRouter()
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_report(report: ReportCreate, pool: asyncpg.Pool = Depends(get_pool)):
     async with pool.acquire() as conn:
         # Ensure user exists (bot may not have called /start)

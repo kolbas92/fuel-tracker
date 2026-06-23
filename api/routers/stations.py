@@ -8,7 +8,7 @@ from api.schemas import StationCreate, StationOut, StationWithStatus, FuelStatus
 
 router = APIRouter()
 
-@router.post("/", response_model=StationOut, status_code=201)
+@router.post("", response_model=StationOut, status_code=201)
 async def create_station(station: StationCreate, pool: asyncpg.Pool = Depends(get_pool)):
     async with pool.acquire() as conn:
         # Upsert user so FK constraint doesn't fail
@@ -60,7 +60,7 @@ async def nearby_stations(
             """, lat, lon, radius_m)
     return [dict(r) for r in rows]
 
-@router.get("/", response_model=list[StationOut])
+@router.get("", response_model=list[StationOut])
 async def list_stations(
     min_lat: float, min_lon: float,
     max_lat: float, max_lon: float,
